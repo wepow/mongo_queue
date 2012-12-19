@@ -2,7 +2,7 @@ require File.expand_path(File.dirname(__FILE__) + '/spec_helper')
 
 describe Mongo::Queue do
   
-  before(:suite) do
+  before(:all) do
     opts   = {
       :database   => 'mongo_queue_spec',
       :collection => 'spec',
@@ -124,6 +124,24 @@ describe Mongo::Queue do
     it "should return nil when unable to lock" do
       4.times{ @@queue.lock_next('blah') }
       @@queue.lock_next('blah').should eql(nil)
+    end
+
+    it "should remove requested documents" do
+      @@queue.remove(:priority => {'$gt' => 1 })
+      @@queue.lock_next('woo')
+      @@queue.lock_next('waa').should eql(nil)
+    end
+  end
+
+  describe "Queue documents with time restrictions" do
+    it "should not lock documents that are not active yet" do
+      doc = @@queue.insert(:active_at => Time.now.utc + 100)
+      @@queue.lock_next('patooey').should eql(nil)
+    end
+
+    it "should lock documents that are active" do
+      doc = @@queue.insert(:active_at => Time.now.utc - 100, :msg => "Success")
+      @@queue.lock_next('gotcha')['msg'].should eql("Success")
     end
   end
   
