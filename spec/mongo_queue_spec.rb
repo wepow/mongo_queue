@@ -8,7 +8,7 @@ describe Mongo::Queue do
       :collection => 'spec',
       :attempts   => 4,
       :timeout    => 60}
-    Database = Mongo::Connection.new('localhost', nil, :pool_size => 4)
+    Database = Moped::Session.new(['localhost:27017'])
     Queue    = Mongo::Queue.new(Database, opts)
   end
   
@@ -39,7 +39,7 @@ describe Mongo::Queue do
     end
   
     it "should have a sane set of defaults" do
-      q = Mongo::Queue.new(nil)
+      q = Mongo::Queue.new(Moped::Session.new(['localhost:27017']))
       q.config[:collection].should eql 'mongo_queue'
       q.config[:attempts].should   eql 3
       q.config[:timeout].should    eql 300
@@ -49,7 +49,7 @@ describe Mongo::Queue do
   describe "Inserting a Job" do
     before(:each) do
       Queue.insert(:message => 'MongoQueueSpec')
-      @item = Queue.send(:collection).find_one  
+      @item = Queue.send(:collection).find.first
     end
     
     it "should set priority to 0 by default" do
@@ -157,7 +157,8 @@ describe Mongo::Queue do
   
   describe "Cleaning up" do
     it "should remove all of the stale locks" do
-      Queue.insert(:msg => 'Fourth', :locked_by => 'Example', :locked_at => Time.now.utc - 60 * 60 * 60, :priority => 99)
+      Queue.insert(:msg => 'Fourth', :locked_by => 'Example',
+                   :locked_at => Time.now.utc - 60 * 60 * 60, :priority => 99)
       Queue.cleanup!
       Queue.lock_next('Foo')['msg'].should eql('Fourth')
     end

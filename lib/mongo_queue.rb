@@ -1,3 +1,6 @@
+module Mongo
+end
+
 class Mongo::Queue
   attr_reader :connection, :config
 
@@ -27,6 +30,7 @@ class Mongo::Queue
   def initialize(connection, opts={})
     @connection = connection
     @config = DEFAULT_CONFIG.merge(opts)
+    @connection.use(@config[:database])
   end
 
   # Remove all items from the queue. Use with caution!
@@ -39,8 +43,9 @@ class Mongo::Queue
   # Example:
   #    queue.insert(:name => 'Billy', :email => 'billy@example.com', :message => 'Here is the thing you asked for')
   def insert(hash)
-    id = collection.insert DEFAULT_INSERT.merge(hash)
-    collection.find_one(:_id => BSON::ObjectId.from_string(id.to_s))
+    document = DEFAULT_INSERT.merge(:_id => Moped::BSON::ObjectId.new).merge(hash)
+    collection.insert(document)
+    collection.find(:_id => document[:_id]).first
   end
 
   # Lock and return the next queue message if one is available. Returns nil if none are available. Be sure to
@@ -48,7 +53,7 @@ class Mongo::Queue
   # Example:
   #    locked_doc = queue.lock_next(Thread.current.object_id)
   def lock_next(locked_by)
-    cmd = BSON::OrderedHash.new
+    cmd = {}
     cmd['findandmodify'] = @config[:collection]
     cmd['update']        = {
       '$set' => {
@@ -68,31 +73,27 @@ class Mongo::Queue
   end
 
   def remove(hash)
-    collection.remove(hash)
+    collection.find(hash).remove_all
   end
 
   # Removes stale locks that have exceeded the timeout and places them back in the queue.
   def cleanup!
-    cursor = collection.find({:locked_by => /.*/, :locked_at => {'$lt' => Time.now.utc - config[:timeout]}})
+    cursor =
+      collection.find(:locked_by => /.*/,
+                      :locked_at => {'$lt' => Time.now.utc - config[:timeout]})
 
-    begin
-      doc = cursor.next_document
-      while doc
-        release(doc, doc['locked_by'])
-        doc = cursor.next_document
-      end
-    rescue
-      #sometimes 'doc' returns as an empty document during concurrent access
+    cursor.each do |doc|
+      release(doc, doc['locked_by'])
     end
   end
 
   # Release a lock on the specified document and allow it to become available again.
   def release(doc, locked_by)
-    cmd = BSON::OrderedHash.new
+    cmd = {}
     cmd['findandmodify'] = @config[:collection]
     cmd['update']        = {'$set' => {:locked_by => nil, :locked_at => nil}}
     cmd['query']         = {:locked_by => locked_by,
-      :_id => BSON::ObjectId.from_string(doc['_id'].to_s)}
+      :_id => Moped::BSON::ObjectId.from_string(doc['_id'].to_s)}
     cmd['limit']         = 1
     cmd['new']           = true
     run(cmd)
@@ -101,10 +102,10 @@ class Mongo::Queue
   # Remove the document from the queue. This should be called when the work is done and the document is no longer needed.
   # You must provide the process identifier that the document was locked with to complete it.
   def complete(doc, locked_by)
-    cmd = BSON::OrderedHash.new
+    cmd = {}
     cmd['findandmodify'] = @config[:collection]
     cmd['query']         = {:locked_by => locked_by, 
-      :_id => BSON::ObjectId.from_string(doc['_id'].to_s)}
+      :_id => Moped::BSON::ObjectId.from_string(doc['_id'].to_s)}
     cmd['remove']        = true
     cmd['limit']         = 1
     run(cmd)
@@ -112,12 +113,16 @@ class Mongo::Queue
 
   # Increase the error count on the locked document and release. Optionally provide an error message.
   def error(doc, error_message=nil)
-    doc['attempts'] +=1
-    collection.save doc.merge({
-      'last_error' => error_message,
-      'locked_by'  => nil,
-      'locked_at'  => nil
-    })
+    collection.find(:_id => doc['_id']).
+      update(
+             '$set' => {
+               'last_error' => error_message,
+               'locked_by'  => nil,
+               'locked_at'  => nil
+             },
+             '$inc' => {
+               'attempts'   => 1
+             })
   end
 
   # Provides some information about what is in the queue. We are using an eval to ensure that a
@@ -136,7 +141,10 @@ class Mongo::Queue
               }
             );
           }"
-    available, locked, errors, total = collection.db.eval(js)
+
+    available, locked, errors, total =
+      collection.database.command(:'$eval' => js)['retval']
+
     { :locked    => locked.to_i,
       :errors    => errors.to_i,
       :available => available.to_i,
@@ -147,7 +155,7 @@ class Mongo::Queue
   protected
 
   def sort_hash #:nodoc:
-    sh = BSON::OrderedHash.new
+    sh = {}
     sh['priority'] = -1 ; sh
   end
 
@@ -157,13 +165,13 @@ class Mongo::Queue
 
   def run(cmd) #:nodoc:
     begin
-      value_of collection.db.command(cmd)
+      value_of collection.database.command(cmd)
     rescue Mongo::OperationFailure
       nil
     end
   end
 
   def collection #:nodoc:
-    @connection.db(@config[:database]).collection(@config[:collection])
+    @connection[(@config[:collection])]
   end
 end
