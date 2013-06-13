@@ -17,6 +17,7 @@ class Mongo::Queue
     :locked_by  => nil,
     :locked_at  => nil,
     :last_error => nil
+    #created_at => Time.now.utc
   }.freeze
 
   # Create a new instance of MongoQueue with the provided mongodb connection and optional configuration.
@@ -43,7 +44,8 @@ class Mongo::Queue
   # Example:
   #    queue.insert(:name => 'Billy', :email => 'billy@example.com', :message => 'Here is the thing you asked for')
   def insert(hash)
-    document = DEFAULT_INSERT.merge(:_id => Moped::BSON::ObjectId.new).merge(hash)
+    document = DEFAULT_INSERT.merge(:_id => Moped::BSON::ObjectId.new,
+                                    :created_at => Time.now.utc).merge(hash)
     collection.insert(document)
     collection.find(:_id => document[:_id]).first
   end

@@ -51,25 +51,31 @@ describe Mongo::Queue do
       Queue.insert(:message => 'MongoQueueSpec')
       @item = Queue.send(:collection).find.first
     end
-    
+
     it "should set priority to 0 by default" do
       @item['priority'].should be(0)
     end
-    
+
     it "should set a null locked_by" do
       @item['locked_by'].should be(nil)      
     end
-    
+
     it "should set a null locked_at" do
       @item['locked_at'].should be(nil)
     end
-    
+
     it "should allow additional fields" do
       @item['message'].should eql('MongoQueueSpec')
     end
-    
+
     it "should set a blank last_error" do
       @item['last_error'].should be(nil)
+    end
+
+    it "should set the time of insertion" do
+      #5 milliseconds is MORE than enough
+      @item['created_at'].should >= Time.now.utc - 5
+      @item['created_at'].should <= Time.now.utc + 5
     end
   end
     
