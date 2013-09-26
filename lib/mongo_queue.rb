@@ -120,7 +120,8 @@ class Mongo::Queue
              '$set' => {
                'last_error' => error_message,
                'locked_by'  => nil,
-               'locked_at'  => nil
+               'locked_at'  => nil,
+               'active_at'  => doc['active_at']
              },
              '$inc' => {
                'attempts'   => 1

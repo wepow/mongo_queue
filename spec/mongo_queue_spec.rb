@@ -154,10 +154,18 @@ describe Mongo::Queue do
   describe "Error Handling" do
     it "should allow document error handling" do
       doc = Queue.insert(:stuff => 'Broken')
-      2.times{ Queue.error(doc, 'I think I broke it') }
+
+      #first attempt
+      Queue.error(doc, 'I think I broke it')
+
+      #second attempt
+      doc['active_at'] = retry_at = Time.now.utc - 100
+      Queue.error(doc, 'Yup, broke it')
+
       doc = Queue.lock_next('Money')
       doc['attempts'].should eql(2)
-      doc['last_error'].should eql('I think I broke it')
+      doc['active_at'].to_i.should eql(retry_at.to_i)
+      doc['last_error'].should eql('Yup, broke it')
     end
   end
   
