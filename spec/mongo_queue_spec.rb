@@ -137,6 +137,16 @@ describe Mongo::Queue do
       Queue.lock_next('woo')
       Queue.lock_next('waa').should eql(nil)
     end
+
+    it "should modify the requested document" do
+      Queue.modify({ msg: 'Second' }, { priority: 999 })
+      Queue.lock_next('woo')['msg'].should eql('Second')
+    end
+
+    it "should modify the requested document via upsert" do
+      Queue.modify({ msg: 'First' }, { priority: 999 })
+      Queue.lock_next('woo')['msg'].should eql('First')
+    end
   end
 
   describe "Queue documents with time restrictions" do

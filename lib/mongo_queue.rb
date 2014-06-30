@@ -50,6 +50,21 @@ class Mongo::Queue
     collection.find(:_id => document[:_id]).first
   end
 
+  # Modify an existing item in the queue by upserting the requested changes.
+  # Only changes the first document found.
+  def modify(query, changes)
+    cmd = {}
+    cmd['findandmodify'] = @config[:collection]
+    cmd['update']        = {
+      '$set' => changes
+    }
+    cmd['query']         = query
+    cmd['sort']          = sort_hash
+    cmd['limit']         = 1
+    cmd['new']           = true
+    run(cmd)
+  end
+
   # Lock and return the next queue message if one is available. Returns nil if none are available. Be sure to
   # review the README.rdoc regarding proper usage of the locking process identifier (locked_by).
   # Example:
