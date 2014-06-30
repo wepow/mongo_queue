@@ -147,6 +147,10 @@ describe Mongo::Queue do
       Queue.modify({ msg: 'First' }, { priority: 999 })
       Queue.lock_next('woo')['msg'].should eql('First')
     end
+
+    it "should return nil on modify failure" do
+      Queue.modify({ msg: 'Not Found' }, {}).should eql(nil)
+    end
   end
 
   describe "Queue documents with time restrictions" do
