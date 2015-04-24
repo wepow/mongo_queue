@@ -184,7 +184,7 @@ class Mongo::Queue
   def run(cmd) #:nodoc:
     begin
       value_of collection.database.command(cmd)
-    rescue Mongo::OperationFailure
+    rescue Moped::Errors::MongoError
       nil
     end
   end
