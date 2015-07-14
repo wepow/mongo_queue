@@ -110,6 +110,12 @@ describe Mongo::Queue do
       @third  = Queue.insert(:msg => 'Third',  :priority => 6)
       @fourth = Queue.insert(:msg => 'Fourth', :locked_by => 'Example', :locked_at => Time.now.utc - 60 * 60 * 60, :priority => 99)
     end
+
+    it "should find jobs" do
+      query = Queue.find(:msg => 'First')
+      query.first['msg'].should eql('First')
+      query.count.should eql(1)
+    end
     
     it "should lock the next document by priority" do
       doc = Queue.lock_next('Test')

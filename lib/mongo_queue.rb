@@ -50,6 +50,10 @@ class Mongo::Queue
     collection.find(:_id => document[:_id]).first
   end
 
+  def find(query)
+    collection.find(query)
+  end
+
   # Modify an existing item in the queue by upserting the requested changes.
   # Only changes the first document found.
   def modify(query, changes)
