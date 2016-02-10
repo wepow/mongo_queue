@@ -100,7 +100,7 @@ class Mongo::Queue
   # Removes stale locks that have exceeded the timeout and places them back in the queue.
   def cleanup!
     cursor =
-      collection.find(:locked_by => /.*/,
+      collection.find(:locked_by => {'$ne' => nil},
                       :locked_at => {'$lt' => Time.now.utc - config[:timeout]})
 
     cursor.each do |doc|
