@@ -16,7 +16,8 @@ class Mongo::Queue
     :attempts   => 0,
     :locked_by  => nil,
     :locked_at  => nil,
-    :last_error => nil
+    :last_error => nil,
+    :active_at  => nil
     #created_at => Time.now.utc
   }.freeze
 
