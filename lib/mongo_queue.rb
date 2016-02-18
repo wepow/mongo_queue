@@ -12,13 +12,14 @@ class Mongo::Queue
   }.freeze
 
   DEFAULT_INSERT = {
-    :priority   => 0,
-    :attempts   => 0,
-    :locked_by  => nil,
-    :locked_at  => nil,
-    :last_error => nil,
-    :active_at  => nil
-    #created_at => Time.now.utc
+    :priority      => 0,
+    :attempts      => 0,
+    :locked_by     => nil,
+    :locked_at     => nil,
+    :keep_alive_at => nil,
+    :last_error    => nil,
+    :active_at     => nil
+    #created_at    => Time.now.utc
   }.freeze
 
   # Create a new instance of MongoQueue with the provided mongodb connection and optional configuration.
@@ -79,8 +80,10 @@ class Mongo::Queue
     cmd['findandmodify'] = @config[:collection]
     cmd['update']        = {
       '$set' => {
-        :locked_by => locked_by,
-        :locked_at => Time.now.utc }
+        :locked_by     => locked_by,
+        :locked_at     => Time.now.utc,
+        :keep_alive_at => Time.now.utc
+      }
     }
     cmd['query']         = {
       :locked_by => nil,
@@ -101,8 +104,8 @@ class Mongo::Queue
   # Removes stale locks that have exceeded the timeout and places them back in the queue.
   def cleanup!
     cursor =
-      collection.find(:locked_by => {'$ne' => nil},
-                      :locked_at => {'$lt' => Time.now.utc - config[:timeout]})
+      collection.find(:locked_by     => {'$ne' => nil},
+                      :keep_alive_at => {'$lt' => Time.now.utc - config[:timeout]})
 
     cursor.each do |doc|
       release(doc, doc['locked_by'])
@@ -113,7 +116,11 @@ class Mongo::Queue
   def release(doc, locked_by)
     cmd = {}
     cmd['findandmodify'] = @config[:collection]
-    cmd['update']        = {'$set' => {:locked_by => nil, :locked_at => nil}}
+    cmd['update']        = {'$set' => {
+                              :locked_by     => nil,
+                              :locked_at     => nil,
+                              :keep_alive_at => nil
+                            }}
     cmd['query']         = {:locked_by => locked_by,
       :_id => Moped::BSON::ObjectId.from_string(doc['_id'].to_s)}
     cmd['limit']         = 1
@@ -138,10 +145,11 @@ class Mongo::Queue
     collection.find(:_id => doc['_id']).
       update(
              '$set' => {
-               'last_error' => error_message,
-               'locked_by'  => nil,
-               'locked_at'  => nil,
-               'active_at'  => doc['active_at']
+               'last_error'    => error_message,
+               'locked_by'     => nil,
+               'locked_at'     => nil,
+               'keep_alive_at' => nil,
+               'active_at'     => doc['active_at']
              },
              '$inc' => {
                'attempts'   => 1
