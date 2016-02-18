@@ -13,7 +13,7 @@ Gem::Specification.new do |gem|
   gem.test_files    = `git ls-files -- {test,spec,features}/*`.split("\n")
   gem.name          = %q{mongo_queue}
   gem.require_paths = ["lib"]
-  gem.version       = '0.2.3'
+  gem.version       = '0.2.4'
   gem.add_development_dependency("rspec", ">= 0")
   gem.add_development_dependency("rdoc", ">= 0")
   gem.add_dependency("moped", "~> 1.4")
