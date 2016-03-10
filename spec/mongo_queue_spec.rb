@@ -145,7 +145,7 @@ describe Mongo::Queue do
     end
 
     it "should modify the requested document" do
-      Queue.modify({ msg: 'Second' }, { priority: 999 })
+      Queue.modify({ 'msg' => 'Second' }, { priority: 999 })
       Queue.lock_next('woo')['msg'].should eql('Second')
     end
 
