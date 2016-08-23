@@ -46,7 +46,7 @@ class Mongo::Queue
   # Example:
   #    queue.insert(:name => 'Billy', :email => 'billy@example.com', :message => 'Here is the thing you asked for')
   def insert(hash)
-    document = DEFAULT_INSERT.merge(:_id => Moped::BSON::ObjectId.new,
+    document = DEFAULT_INSERT.merge(:_id => BSON::ObjectId.new,
                                     :created_at => Time.now.utc).merge(hash)
     collection.insert(document)
     collection.find(:_id => document[:_id]).first
@@ -122,7 +122,7 @@ class Mongo::Queue
                               :keep_alive_at => nil
                             }}
     cmd['query']         = {:locked_by => locked_by,
-      :_id => Moped::BSON::ObjectId.from_string(doc['_id'].to_s)}
+      :_id => BSON::ObjectId.from_string(doc['_id'].to_s)}
     cmd['limit']         = 1
     cmd['new']           = true
     run(cmd)
@@ -134,7 +134,7 @@ class Mongo::Queue
     cmd = {}
     cmd['findandmodify'] = @config[:collection]
     cmd['query']         = {:locked_by => locked_by, 
-      :_id => Moped::BSON::ObjectId.from_string(doc['_id'].to_s)}
+      :_id => BSON::ObjectId.from_string(doc['_id'].to_s)}
     cmd['remove']        = true
     cmd['limit']         = 1
     run(cmd)

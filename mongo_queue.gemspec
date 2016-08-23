@@ -16,7 +16,7 @@ Gem::Specification.new do |gem|
   gem.version       = '0.2.4'
   gem.add_development_dependency("rspec", ">= 0")
   gem.add_development_dependency("rdoc", ">= 0")
-  gem.add_dependency("moped", "~> 1.4")
+  gem.add_dependency("moped", "~> 2.0.0")
 
   gem.rdoc_options = ["--charset=UTF-8"]
   gem.extra_rdoc_files = [
