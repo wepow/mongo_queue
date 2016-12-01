@@ -48,7 +48,7 @@ class Mongo::Queue
   def insert(hash)
     document = DEFAULT_INSERT.merge(:_id => BSON::ObjectId.new,
                                     :created_at => Time.now.utc).merge(hash)
-    collection.insert(document)
+    collection.insert_one(document)
     collection.find(:_id => document[:_id]).first
   end
 
@@ -98,7 +98,7 @@ class Mongo::Queue
   end
 
   def remove(hash)
-    collection.find(hash).remove_all
+    collection.delete_many(hash)
   end
 
   # Removes stale locks that have exceeded the timeout and places them back in the queue.
@@ -142,18 +142,19 @@ class Mongo::Queue
 
   # Increase the error count on the locked document and release. Optionally provide an error message.
   def error(doc, error_message=nil)
-    collection.find(:_id => doc['_id']).
-      update(
-             '$set' => {
-               'last_error'    => error_message,
-               'locked_by'     => nil,
-               'locked_at'     => nil,
-               'keep_alive_at' => nil,
-               'active_at'     => doc['active_at']
-             },
-             '$inc' => {
-               'attempts'   => 1
-             })
+    collection.update_one({ :_id => doc['_id'] },
+                          {
+                            '$set' => {
+                              'last_error'    => error_message,
+                              'locked_by'     => nil,
+                              'locked_at'     => nil,
+                              'keep_alive_at' => nil,
+                              'active_at'     => doc['active_at']
+                            },
+                            '$inc' => {
+                              'attempts'   => 1
+                            }
+                          })
   end
 
   # Provides some information about what is in the queue. We are using an eval to ensure that a
@@ -174,7 +175,7 @@ class Mongo::Queue
           }"
 
     available, locked, errors, total =
-      collection.database.command(:'$eval' => js)['retval']
+     collection.database.command(:'$eval' => js).documents.first['retval']
 
     { :locked    => locked.to_i,
       :errors    => errors.to_i,
@@ -191,15 +192,11 @@ class Mongo::Queue
   end
 
   def value_of(result) #:nodoc:
-    result['okay'] == 0 ? nil : result['value']
+    result.documents.first['ok'] == 0 ? nil : result.documents.first['value']
   end
 
   def run(cmd) #:nodoc:
-    begin
-      value_of collection.database.command(cmd)
-    rescue Moped::Errors::MongoError
-      nil
-    end
+    value_of collection.database.command(cmd)
   end
 
   def collection #:nodoc:

@@ -8,7 +8,7 @@ describe Mongo::Queue do
       :collection => 'spec',
       :attempts   => 4,
       :timeout    => 60}
-    Database = Moped::Session.new(['localhost:27017'])
+    Database = Mongo::Client.new(['localhost:27017'])
     Queue    = Mongo::Queue.new(Database, opts)
   end
   
@@ -39,7 +39,7 @@ describe Mongo::Queue do
     end
   
     it "should have a sane set of defaults" do
-      q = Mongo::Queue.new(Moped::Session.new(['localhost:27017']))
+      q = Mongo::Queue.new(Mongo::Client.new(['localhost:27017']))
       q.config[:collection].should eql 'mongo_queue'
       q.config[:attempts].should   eql 3
       q.config[:timeout].should    eql 300
