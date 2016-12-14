@@ -31,9 +31,8 @@ class Mongo::Queue
   #    queue = Mongo::Queue.new(db, config)
   #
   def initialize(connection, opts={})
-    @connection = connection
     @config = DEFAULT_CONFIG.merge(opts)
-    @connection.use(@config[:database])
+    @connection = connection.use(@config[:database])
   end
 
   # Remove all items from the queue. Use with caution!

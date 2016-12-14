@@ -18,10 +18,6 @@ describe Mongo::Queue do
   
   describe "Configuration" do
 
-    it "should set the connection" do
-      Queue.connection.should be(Database)
-    end
-
     it "should allow database option" do
       Queue.config[:database].should eql('mongo_queue_spec')
     end
