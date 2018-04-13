@@ -81,18 +81,20 @@ describe Mongo::Queue do
         :locked    => 0,
         :available => 0,
         :errors    => 0,
-        :total     => 0
+        :total     => 0,
+        :active    => 0
       })
     end
     
     it "should calculate properly" do
       @first  = Queue.insert(:msg => 'First',  :attempts => 4)
-      @second = Queue.insert(:msg => 'Second', :priority => 2)
+      @second = Queue.insert(:msg => 'Second', :priority => 2, :active_at => Time.now.utc + 5)
       @third  = Queue.insert(:msg => 'Third',  :priority => 6)
       @fourth = Queue.insert(:msg => 'Fourth', :locked_by => 'Example', :locked_at => Time.now.utc - 60 * 60 * 60, :priority => 99)
       Queue.stats.should eql({
         :locked    => 1,
         :available => 2,
+        :active    => 1,
         :errors    => 1,
         :total     => 4
       })
@@ -151,7 +153,7 @@ describe Mongo::Queue do
     end
 
     it "should return nil on modify failure" do
-      Queue.modify({ msg: 'Not Found' }, {}).should eql(nil)
+      Queue.modify({ msg: 'Not Found' }, { priority: 1 }).should eql(nil)
     end
   end
 

@@ -164,24 +164,25 @@ class Mongo::Queue
     js = "function queue_stat(){
               return db.eval(
               function(){
-                var a = db.#{config[:collection]}.count({'locked_by': null, 'attempts': {$lt: #{config[:attempts]}}});
-                var l = db.#{config[:collection]}.count({'locked_by': /.*/});
-                var e = db.#{config[:collection]}.count({'attempts': {$gte: #{config[:attempts]}}});
-                var t = db.#{config[:collection]}.count();
-                return [a, l, e, t];
+                var a  = db.#{config[:collection]}.count({'locked_by': null, 'attempts': {$lt: #{config[:attempts]}}});
+                var ac = db.#{config[:collection]}.count({'locked_by': null, 'attempts': {$lt: #{config[:attempts]}}, '$or': [{'active_at': null}, {'active_at': {'$lt': new Date()}}]});
+                var l  = db.#{config[:collection]}.count({'locked_by': /.*/});
+                var e  = db.#{config[:collection]}.count({'attempts': {$gte: #{config[:attempts]}}});
+                var t  = db.#{config[:collection]}.count();
+                return [a, ac, l, e, t];
               }
             );
           }"
 
-    available, locked, errors, total =
+    available, active, locked, errors, total =
      collection.database.command(:'$eval' => js).documents.first['retval']
 
-    { :locked    => locked.to_i,
+    { :available => available.to_i,
+      :active    => active.to_i,
+      :locked    => locked.to_i,
       :errors    => errors.to_i,
-      :available => available.to_i,
       :total     => total.to_i }
   end
-
 
   protected
 
