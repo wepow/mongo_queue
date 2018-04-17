@@ -35,9 +35,27 @@ class Mongo::Queue
     @connection = connection.use(@config[:database])
   end
 
-  # Remove all items from the queue. Use with caution!
-  def flush!
-    collection.drop
+  # Remove all jobs that have been retried past the maximum attempts and place
+  # them in a backup collection, to avoid growing the collection size indefinitely.
+  def purge!
+    cursor = collection.find({
+      :locked_by => nil,
+      :attempts  => { '$gte' => @config[:attempts] }
+    })
+
+    cursor.no_cursor_timeout.each do |doc|
+      begin
+        result = purged_collection.insert_one(doc)
+
+        if result.ok? && result.written_count == 1
+          collection.delete_one(:_id => doc['_id'])
+        end
+      rescue => exception
+        if exception.message =~ /_id_ dup/ # Delete if already in purged collection
+          collection.delete_one(:_id => doc['_id'])
+        end
+      end
+    end
   end
 
   # Insert a new item in to the queue with required queue message parameters.
@@ -106,7 +124,7 @@ class Mongo::Queue
       collection.find(:locked_by     => {'$ne' => nil},
                       :keep_alive_at => {'$lt' => Time.now.utc - config[:timeout]})
 
-    cursor.each do |doc|
+    cursor.no_cursor_timeout.each do |doc|
       release(doc, doc['locked_by'])
     end
   end
@@ -201,5 +219,9 @@ class Mongo::Queue
 
   def collection #:nodoc:
     @connection[(@config[:collection])]
+  end
+
+  def purged_collection #:nodoc:
+    @connection[("#{@config[:collection]}_purged")]
   end
 end

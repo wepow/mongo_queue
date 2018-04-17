@@ -13,7 +13,8 @@ describe Mongo::Queue do
   end
   
   before(:each) do
-    Queue.flush!
+    Queue.send(:collection).drop
+    Queue.send(:purged_collection).drop
   end
   
   describe "Configuration" do
@@ -195,5 +196,22 @@ describe Mongo::Queue do
       Queue.lock_next('Foo')['msg'].should eql('Fourth')
     end
   end
-    
+
+  describe "Purging" do
+    it "should move all jobs past the attempts limit to a purged collection" do
+      Queue.insert(:msg => 'Locked', :attempts => 4, :locked_by => 'Someone')
+      Queue.insert(:msg => 'Bye', :attempts => 4)
+      Queue.insert(:msg => 'I stay', :attempts => 3)
+
+      Queue.purge!
+
+      Queue.find({}).count.should eql(2)
+      Queue.lock_next('Foo')['msg'].should eql('I stay')
+      Queue.lock_next('Bar').should eql(nil)
+
+      Queue.send(:purged_collection).count.should eql(1)
+      Queue.send(:purged_collection).find({}).first['msg'].should eql('Bye')
+    end
+  end
+
 end
