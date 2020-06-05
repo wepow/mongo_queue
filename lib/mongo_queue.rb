@@ -83,7 +83,6 @@ class Mongo::Queue
     }
     cmd['query']         = query
     cmd['sort']          = sort_hash
-    cmd['limit']         = 1
     cmd['new']           = true
     run(cmd)
   end
@@ -109,7 +108,6 @@ class Mongo::Queue
                 {:active_at => {'$lt' => Time.now.utc}}]
     }
     cmd['sort']          = sort_hash
-    cmd['limit']         = 1
     cmd['new']           = true
     run(cmd)
   end
@@ -140,7 +138,6 @@ class Mongo::Queue
                             }}
     cmd['query']         = {:locked_by => locked_by,
       :_id => BSON::ObjectId.from_string(doc['_id'].to_s)}
-    cmd['limit']         = 1
     cmd['new']           = true
     run(cmd)
   end
@@ -153,7 +150,6 @@ class Mongo::Queue
     cmd['query']         = {:locked_by => locked_by, 
       :_id => BSON::ObjectId.from_string(doc['_id'].to_s)}
     cmd['remove']        = true
-    cmd['limit']         = 1
     run(cmd)
   end
 
