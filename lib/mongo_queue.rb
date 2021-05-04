@@ -43,19 +43,17 @@ class Mongo::Queue
       :attempts  => { '$gte' => @config[:attempts] }
     })
 
-    cursor.no_cursor_timeout.each do |doc|
-      begin
-        result = purged_collection.insert_one(doc)
-
-        if result.ok? && result.written_count == 1
-          collection.delete_one(:_id => doc['_id'])
-        end
-      rescue => exception
-        if exception.message =~ /_id_ dup/ # Delete if already in purged collection
-          collection.delete_one(:_id => doc['_id'])
-        end
-      end
+    # continue_on_error is not an option for insert_many , use unordered inserts instead.By specifying ordered: false ,
+    # inserts will happen in an unordered fashion and it will try to insert all requests.
+    # Including an try catch block will make sure it won't break after an exception,
+    # so you are achieving an MYSQL INSERT IGNORE equivalent.
+    begin
+      purged_collection.insert_many(cursor.no_cursor_timeout.to_a, {ordered: false})
+    rescue => e
+      puts "ERROR #{e.message.inspect}"
     end
+    # this will reduce soter_queue delete database call
+    cursor.delete_many
   end
 
   # Insert a new item in to the queue with required queue message parameters.
