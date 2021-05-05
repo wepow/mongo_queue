@@ -207,12 +207,12 @@ describe Mongo::Queue do
       Queue.send(:purged_collection).insert_one('_id': existing_id, :msg => 'Bye', :attempts => 4)
       Queue.purge!
 
-      Queue.find({}).count.should eql(2)
-      Queue.lock_next('Foo')['msg'].should eql('I stay')
-      Queue.lock_next('Bar').should eql(nil)
+      expect(Queue.find({}).count).to eq(2)
+      expect(Queue.lock_next('Foo')['msg']).to eq('I stay')
+      expect(Queue.lock_next('Bar')).to be_nil
 
-      Queue.send(:purged_collection).count.should eql(2)
-      Queue.send(:purged_collection).find({}).first['msg'].should eql('Bye')
+      expect(Queue.send(:purged_collection).count).to eq(2)
+      expect(Queue.send(:purged_collection).find({}).first['msg']).to eq('Bye')
     end
   end
 

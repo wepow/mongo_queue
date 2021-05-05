@@ -48,7 +48,7 @@ class Mongo::Queue
     # Including an try catch block will make sure it won't break after an exception,
     # so you are achieving an MYSQL INSERT IGNORE equivalent.
     begin
-      purged_collection.insert_many(cursor.no_cursor_timeout.to_a, {ordered: false})
+      purged_collection.insert_many(cursor, ordered: false)
     rescue => e
       puts "ERROR #{e.message.inspect}"
     end
